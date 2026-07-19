@@ -16,7 +16,8 @@ class AuthService {
     static async login(user){
         const {email , password} = user;
         const findUser = await User.findOne({email}).select('+password');
-        if(!findUser || !(await findUser.comparePassword(password))){
+        const isMatch =await findUser.comparePassword(password)
+        if(!findUser || !isMatch){
             throw new AppError(`user email or password is not correct`, 401);
         }
         const token = AuthService.generateToken(findUser);
