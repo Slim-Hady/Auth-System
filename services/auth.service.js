@@ -3,6 +3,7 @@ const {JWT_SECRET, JWT_EXPIRES_IN} = require('../config/key');
 const User = require('../models/user.model');
 const AppError = require('../utils/AppError');
 const userDTO = require('../dtos/user.dto');
+const crypto = require('crypto');
 
 class AuthService {
     /**
@@ -98,6 +99,20 @@ class AuthService {
         //     user: userDTO.formatUser(newUser)
         // }
         return userDTO.formatUser(newUser)
+    }
+    /**
+     * 
+     * @returns {int} generate 6 digits OTP
+     */
+    static generateOTP(){
+        return crypto.randomInt(100000, 1000000)
+    }
+    /**
+     * 
+     * @returns {hex} return 32 Token 
+     */
+    static generateVerificationLink(){
+        return crypto.randomBytes(32).toString('hex');
     }
 }
 

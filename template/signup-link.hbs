@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activate Your Account</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 30px auto; background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .header { text-align: center; border-bottom: 1px solid #eeeeee; padding-bottom: 20px; }
+        .logo { font-size: 24px; font-weight: bold; color: #2c3e50; }
+        .content { padding: 30px 0; text-align: center; }
+        .welcome-text { font-size: 18px; color: #333333; margin-bottom: 10px; }
+        .instruction { color: #666666; font-size: 14px; margin-bottom: 30px; }
+        .btn-verify { background-color: #2ecc71; color: #ffffff; text-decoration: none; padding: 15px 35px; font-size: 16px; font-weight: bold; border-radius: 5px; display: inline-block; transition: background-color 0.3s ease; }
+        .btn-verify:hover { background-color: #27ae60; }
+        .fallback-link { font-size: 12px; color: #999999; margin-top: 30px; word-break: break-all; }
+        .footer { text-align: center; color: #999999; font-size: 12px; border-top: 1px solid #eeeeee; padding-top: 20px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Welcome</div>
+        </div>
+        <div class="content">
+            <p class="welcome-text">Hello {{name}},</p>
+            <p class="instruction">We are excited to have you on board! Click the button below to verify your email address and activate your account:</p>
+            <a href="{{link}}" class="btn-verify" target="_blank">Verify Email Address</a>
+            <p class="fallback-link">If the button doesn't work, copy and paste this link into your browser:<br><a href="{{link}}">{{link}}</a></p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 Your Company. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

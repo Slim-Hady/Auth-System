@@ -1,5 +1,7 @@
 const nodemailer = require("nodemailer");
 const {smtp_host, smtp_name,smtp_password,smtp_port, email} = require('./key');
+const path = require('path');
+const hbs = require('nodemailer-express-handlebars');
 
 const transport = nodemailer.createTransport({
   host: smtp_host,
@@ -10,17 +12,27 @@ const transport = nodemailer.createTransport({
     pass: smtp_password
   }
 });
- 
-module.exports = transport;
 
-// transport.sendMail({
-//   from: `Mohamed Hady ${email}`,
-//   to: "A Test User <mohamed.mci.17.8@gmail.com>",
-//   subject: "Hello from Mailtrap",
-//   text: "This is a test e-mail message."
-// }, (error, info) => {
-//   if (error) {
-//     return console.log(error);
-//   }
-//   console.log("Message sent: %s", info.messageId);
-// });
+const verifyEmailConnection = async ()=> {
+    try {
+       await transport.verify();
+       console.log(`Connect to Email service`);
+    }
+    catch (err){
+        console.log(`can't connect to email service ${err}`);
+    }
+}
+const option = {
+    viewEngine : {
+        extname: '.hbs',
+        partialsDir: path.resolve('./template'),
+        defaultLayout: false
+    },
+    extname: '.hbs',
+    viewPath: path.resolve('./template')
+}
+
+transport.use('compile' , hbs(option));
+
+module.exports = {transport , verifyEmailConnection};
+
