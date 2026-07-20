@@ -1,7 +1,7 @@
 const nodemailer = require("nodemailer");
 const {smtp_host, smtp_name,smtp_password,smtp_port, email} = require('./key');
 const path = require('path');
-const hbs = require('nodemailer-express-handlebars');
+const hbs = require('nodemailer-express-handlebars').default;
 
 const transport = nodemailer.createTransport({
   host: smtp_host,
@@ -33,6 +33,8 @@ const option = {
 }
 
 transport.use('compile' , hbs(option));
+
+//console.log(hbs(option));
 
 module.exports = {transport , verifyEmailConnection};
 

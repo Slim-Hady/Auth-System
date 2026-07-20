@@ -37,6 +37,15 @@ const userSchema = new Schema({
     isVerified: {
         type: Boolean,
         default: false
+    },
+    verificationOTP: {
+    type: String,
+    select: false
+    },
+
+    verificationOTPExpires: {
+    type: Date,
+    select: false
     }
 },{
     timestamps: true,
@@ -53,6 +62,9 @@ userSchema.methods.comparePassword = async function(password){
 }
 
 userSchema.pre('save' , async function() {
+    if (!this.isModified('password')) {
+        return;
+    }
     this.password = await bcrypt.hash(this.password, 12);
 });
 
