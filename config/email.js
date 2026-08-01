@@ -13,7 +13,7 @@ const transport = nodemailer.createTransport({
   }
 });
 
-const verifyEmailConnection = async ()=> {
+const verifyEmailConnection = async () => {
     try {
        await transport.verify();
        console.log(`Connect to Email service`);
