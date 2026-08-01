@@ -1,4 +1,4 @@
-const {Schema} = require('mongoose');
+const {Schema , model} = require('mongoose');
 const validator = require('validator');
 
 const commentSchema = new Schema({

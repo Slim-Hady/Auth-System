@@ -22,6 +22,7 @@ const verifyEmailConnection = async () => {
         console.log(`can't connect to email service ${err}`);
     }
 }
+
 const option = {
     viewEngine : {
         extname: '.hbs',

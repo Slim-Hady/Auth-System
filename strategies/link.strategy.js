@@ -1,5 +1,4 @@
 const VerificationStrategy = require("./verification.strategy");
-const VerificationStrategy = require("./verification.strategy");
 const emailService = require('../services/email.service');
 
 const crypto = require('crypto');

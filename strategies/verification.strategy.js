@@ -3,4 +3,4 @@ class VerificationStrategy {
         throw new Error("You must implement send verification");
     }
 }
-module.exports = VerificationStrategy
+module.exports = VerificationStrategy;
