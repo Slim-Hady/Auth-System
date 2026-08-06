@@ -9,5 +9,6 @@ module.exports = {
     smtp_password: process.env.smtp_password,
     smtp_port: parseInt(process.env.smtp_port || "587", 10),
     email_from_address: process.env.email_from_address,
-    email_from_name: process.env.email_from_name
+    email_from_name: process.env.email_from_name,
+    VERIFY_TYPE: process.env.VERIFY_TYPE || "otp"
 }

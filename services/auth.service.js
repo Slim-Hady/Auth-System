@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
-const {JWT_SECRET, JWT_EXPIRES_IN} = require('../config/key');
+const {JWT_SECRET, JWT_EXPIRES_IN, VERIFY_TYPE} = require('../config/key');
 const User = require('../models/user.model');
 const AppError = require('../utils/AppError');
 const userDTO = require('../dtos/user.dto');
-
+const sendEmail = require('../factories/verification.factory');
+const bcrypt =require('bcrypt');
 class AuthService {
     /**
      * 
@@ -98,6 +99,8 @@ class AuthService {
             throw new AppError(`Email already exists.`, 409);
         }
         const newUser =await User.create(user);
+        const strategy = sendEmail.createStrategy(VERIFY_TYPE);
+        await strategy.sendVerification(newUser);
         // const token = AuthService.generateToken(newUser);
         // return {
         //     token, 
@@ -105,7 +108,26 @@ class AuthService {
         // }
         return userDTO.formatUser(newUser)
     }
-   
+   // verify email 
+   static async verifyEmail({email,code}){
+
+        const user = await User.findOne({email});
+
+        if(!user) throw new AppError("Email not found", 404);
+        const match = await bcrypt.compare(code, user.verificationOTP || '');
+
+        if(!user.verificationOTP || user.verificationOTPExpires < Date.now() || !match) {
+            throw new AppError('Invalid or expired code', 400);
+        }
+
+        user.isVerified = true;
+        user.verificationOTP =  undefined;
+        user.verificationOTPExpires =  undefined;
+        await user.save({validateBeforeSave: false});
+        
+        return userDTO.formatUser(user);
+
+   }
    
 }
 
