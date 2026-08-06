@@ -9,7 +9,7 @@ class OTPStrategy extends VerificationStrategy{
     
     async sendVerification(user){
         const otp = this.generateOTP();
-        const hashedOTP = this.hashOTP(otp);
+        const hashedOTP = await this.hashOTP(otp);
         const expirationDate = this.generateExpirationDate();
         await this.saveOTP(
             user,
@@ -29,7 +29,7 @@ class OTPStrategy extends VerificationStrategy{
         return crypto.randomInt(100000, 1000000)
     }
     async hashOTP(otp){
-        return bcrypt.hash(otp,10);
+        return bcrypt.hash(String(otp),10);
     }
     generateExpirationDate(){
         return new Date(Date.now() +10*60*1000);

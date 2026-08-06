@@ -26,6 +26,10 @@ class AuthService {
         if(!isMatch){
             throw new AppError(`user email or password is not correct`, 401);
         }
+        
+        if(!findUser.isVerified){
+             throw new AppError(`user is not verified`, 401);
+        }   
 
         const token = AuthService.generateToken(findUser);
         return {
@@ -109,15 +113,15 @@ class AuthService {
         return userDTO.formatUser(newUser)
     }
    // verify email 
-   static async verifyEmail({email,code}){
+   static async verifyEmail({email,otp}){
 
-        const user = await User.findOne({email});
+        const user = await User.findOne({email}).select('+verificationOTP +verificationOTPExpires');
 
         if(!user) throw new AppError("Email not found", 404);
-        const match = await bcrypt.compare(code, user.verificationOTP || '');
+        const match = await bcrypt.compare(otp, user.verificationOTP || '');
 
         if(!user.verificationOTP || user.verificationOTPExpires < Date.now() || !match) {
-            throw new AppError('Invalid or expired code', 400);
+            throw new AppError('Invalid or expired otp', 400);
         }
 
         user.isVerified = true;

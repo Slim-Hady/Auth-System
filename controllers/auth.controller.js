@@ -29,3 +29,12 @@ exports.register = catchAsync(async (req, res, next) => {
         });
 
 })
+
+exports.verifyEmail = catchAsync(async(req, res, next) => {
+
+    await AuthService.verifyEmail(req.body);
+    res.status(200).json({
+        status: 'success',
+        message: 'Email verified successfully'
+    })
+})

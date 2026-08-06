@@ -25,11 +25,11 @@ const verifyEmailConnection = async () => {
 
 const option = {
     viewEngine : {
-        extname: '.hbs',
+        extName: '.hbs',
         partialsDir: path.resolve('./template'),
         defaultLayout: false
     },
-    extname: '.hbs',
+    extName: '.hbs',
     viewPath: path.resolve('./template')
 }
 
