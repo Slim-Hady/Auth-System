@@ -24,7 +24,7 @@ class LinkStrategy extends VerificationStrategy{
      * 
      * @returns {hex} return 32 Token 
      */
-    static generateLink(){
+    generateLink(){
         return crypto.randomBytes(32).toString('hex');
     }
     generateExpirationDate(){
