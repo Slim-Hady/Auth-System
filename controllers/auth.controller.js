@@ -38,3 +38,11 @@ exports.verifyEmail = catchAsync(async(req, res, next) => {
         message: 'Email verified successfully'
     })
 })
+
+exports.resendOTP = catchAsync(async(req,res,next) => {
+    await AuthService.resendOTP(req.body);
+    res.status(200).json({
+        status: 'success',
+        message: 'OTP Resend successfully'
+    })
+})

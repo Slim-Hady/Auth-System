@@ -103,14 +103,19 @@ class AuthService {
             throw new AppError(`Email already exists.`, 409);
         }
         const newUser =await User.create(user);
-        const strategy = sendEmail.createStrategy(VERIFY_TYPE);
-        await strategy.sendVerification(newUser);
+        AuthService.sendEmail(newUser);
+        // const strategy = sendEmail.createStrategy(VERIFY_TYPE);
+        // await strategy.sendVerification(newUser);
         // const token = AuthService.generateToken(newUser);
         // return {
         //     token, 
         //     user: userDTO.formatUser(newUser)
         // }
         return userDTO.formatUser(newUser)
+    }
+    static async sendEmail(user){
+        const strategy = sendEmail.createStrategy(VERIFY_TYPE);
+        await strategy.sendVerification(user);
     }
    // verify email 
    static async verifyEmail({email,otp}){
@@ -133,6 +138,16 @@ class AuthService {
 
    }
    
+   /**
+    * making a resend OTP function it must take a user info then send the otp again 
+    * @param {object} user
+    * @return {string} otp
+    */
+    static async resendOTP({email}){
+        const res = await User.findOne({email});
+        if(!res) throw new AppError("Email not found", 404);
+        AuthService.sendEmail(res);
+   }
 }
 
 module.exports = AuthService;
