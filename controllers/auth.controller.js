@@ -46,3 +46,11 @@ exports.resendOTP = catchAsync(async(req,res,next) => {
         message: 'OTP Resend successfully'
     })
 })
+
+exports.forgetPassword = catchAsync(async(req,res,next) => {
+    await AuthService.forgetPassword(req.body);
+    res.status(200).json({
+        status: 'success',
+        message: 'OTP Resend successfully'
+    })
+});

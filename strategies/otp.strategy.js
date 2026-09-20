@@ -3,20 +3,26 @@ const emailService = require('../services/email.service');
 
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
-const User = require('../models/user.model');
 
 class OTPStrategy extends VerificationStrategy{
     
-    async sendVerification(user){
+    async sendVerification(user , purpose = "signup"){
         const otp = this.generateOTP();
         const hashedOTP = await this.hashOTP(otp);
         const expirationDate = this.generateExpirationDate();
         await this.saveOTP(
             user,
             hashedOTP,
-            expirationDate
+            expirationDate,
+            purpose
         );
-        await this.sendOTPEmail(
+        if(purpose === "signup"){
+            return await this.sendOTPEmail(
+                user,
+                otp
+            );
+        }
+        return await this.sendForgetPassOTP(
             user,
             otp
         );
@@ -34,10 +40,15 @@ class OTPStrategy extends VerificationStrategy{
     generateExpirationDate(){
         return new Date(Date.now() +10*60*1000);
     }
-    async saveOTP(user, hashedOTP, expirationDate) {
-        user.verificationOTP = hashedOTP;
-        user.verificationOTPExpires = expirationDate;
-        await user.save({validateBeforeSave: false});
+    async saveOTP(user, hashedOTP, expirationDate, purpose) {
+        if(purpose === "signup"){
+            user.verificationOTP = hashedOTP;
+            user.verificationOTPExpires = expirationDate;
+            return await user.save({validateBeforeSave: false});
+        }
+        user.resetOTP = hashedOTP;
+        user.resetOTPExpires = expirationDate;
+        return await user.save({validateBeforeSave: false});
     }
     async sendOTPEmail(user,otp){
         await emailService.sendSignUpOTP(
@@ -45,6 +56,13 @@ class OTPStrategy extends VerificationStrategy{
             otp,
             user.userName
         );
+    }
+    async sendForgetPassOTP(user,otp){
+        await emailService.sendForgetPasswordOTP(
+            user.email,
+            otp,
+            user.userName
+        )
     }
 }   
 

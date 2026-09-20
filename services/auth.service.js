@@ -5,6 +5,7 @@ const AppError = require('../utils/AppError');
 const userDTO = require('../dtos/user.dto');
 const sendEmail = require('../factories/verification.factory');
 const bcrypt =require('bcrypt');
+const emailService = require('../services/email.service');
 class AuthService {
     /**
      * 
@@ -103,7 +104,7 @@ class AuthService {
             throw new AppError(`Email already exists.`, 409);
         }
         const newUser =await User.create(user);
-        AuthService.sendEmail(newUser);
+        AuthService.sendEmail(newUser, "signup");
         // const strategy = sendEmail.createStrategy(VERIFY_TYPE);
         // await strategy.sendVerification(newUser);
         // const token = AuthService.generateToken(newUser);
@@ -113,25 +114,29 @@ class AuthService {
         // }
         return userDTO.formatUser(newUser)
     }
-    static async sendEmail(user){
+    static async sendEmail(user, purpose = "signup"){
         const strategy = sendEmail.createStrategy(VERIFY_TYPE);
-        await strategy.sendVerification(user);
+        await strategy.sendVerification(user , purpose);
     }
    // verify email 
-   static async verifyEmail({email,otp}){
+   static async verifyEmail({email,otp} , purpose = "signup"){
+        const isSignup = purpose === "signup";
+        const otpField = isSignup ? "verificationOTP" : "resetOTP"
+        const expireField = isSignup ? "verificationOTPExpires" : "resetOTPExpires"
 
-        const user = await User.findOne({email}).select('+verificationOTP +verificationOTPExpires');
+        const user = await User.findOne({email}).select(`+${otpField} +${expireField}`);
 
         if(!user) throw new AppError("Email not found", 404);
-        const match = await bcrypt.compare(otp, user.verificationOTP || '');
 
-        if(!user.verificationOTP || user.verificationOTPExpires < Date.now() || !match) {
+        const match = await bcrypt.compare(otp, user[otpField] || '');
+
+        if(!user[otpField] || user[expireField] < Date.now() || !match) {
             throw new AppError('Invalid or expired otp', 400);
         }
 
-        user.isVerified = true;
-        user.verificationOTP =  undefined;
-        user.verificationOTPExpires =  undefined;
+        if(isSignup) user.isVerified = true;
+        user[otpField] =  undefined;
+        user[expireField] =  undefined;
         await user.save({validateBeforeSave: false});
         
         return userDTO.formatUser(user);
@@ -139,7 +144,6 @@ class AuthService {
    }
    
    /**
-    * making a resend OTP function it must take a user info then send the otp again 
     * @param {object} user
     * @return {string} otp
     */
@@ -148,6 +152,34 @@ class AuthService {
         if(!res) throw new AppError("Email not found", 404);
         AuthService.sendEmail(res);
    }
+   
+    static async forgetPassword({email}){
+        const user = await User.findOne({email});
+        if(!user) throw new AppError('user not found' , 404);
+        AuthService.sendEmail(user , "forget");
+    }
+  
+    async changePassword({email ,newPassword, confirmPassword}) {
+        const user = await User.findOne({email});
+        if(newPassword != confirmPassword) {
+            throw new AppError("password don't match", 404);
+        }
+        user.password = newPassword;
+        return userDTO.formatUser(user);
+    }
+
+    async resetPassword({email , oldPassword , newPassword}){
+        const user = await User.findOne({email}).select("+password");
+        if(!user) throw new AppError("User not exist" , 404);
+        const isMatch = await user.comparePassword(oldPassword);
+        if(!isMatch){
+            throw new AppError("Password don't match", 401);
+        }
+        user.password = newPassword;
+        await user.save();
+        return userDTO.formatUser(user);
+    }
+   
 }
 
 module.exports = AuthService;

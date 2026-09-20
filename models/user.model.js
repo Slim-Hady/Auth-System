@@ -46,7 +46,18 @@ const userSchema = new Schema({
     verificationOTPExpires: {
     type: Date,
     select: false
-    }
+    }, 
+
+    resetOTP: {
+    type: String,
+    select: false
+    },
+
+    resetOTPExpires: {
+    type: Date,
+    select: false
+    }, 
+    
 },{
     timestamps: true,
     toJSON: { virtuals: true },
