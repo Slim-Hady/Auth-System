@@ -159,12 +159,13 @@ class AuthService {
         AuthService.sendEmail(user , "forget");
     }
   
-    async changePassword({email ,newPassword, confirmPassword}) {
+    static async changePassword({email ,newPassword, confirmPassword}) {
         const user = await User.findOne({email});
         if(newPassword != confirmPassword) {
             throw new AppError("password don't match", 404);
         }
         user.password = newPassword;
+        await user.save();
         return userDTO.formatUser(user);
     }
 
