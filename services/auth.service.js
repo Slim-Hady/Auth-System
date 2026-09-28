@@ -49,7 +49,6 @@ class AuthService {
 
     /**
      * Mint a short-lived access JWT (the "ticket").
-     * Payload is readable by anyone (base64), so never put password/OTP inside.
      *
      * @param {object} user - Mongoose user doc (needs id, userName, email, role)
      * @param {string} user.id
@@ -74,8 +73,6 @@ class AuthService {
     }
 
     /**
-     * Verify Authorization header token (used by `protect` middleware).
-     * Converts library errors to friendly AppErrors.
      *
      * @param {string} token - raw JWT without "Bearer " prefix
      * @returns {object} decoded payload {userId, email, role, iat, exp, iss}
@@ -97,7 +94,7 @@ class AuthService {
     }
 
     /**
-     * Decode without verifying (debug only). NEVER gate access on this.
+     * Decode without verifying (debug only)
      *
      * @param {string} token - any JWT
      * @returns {object|null} {header, payload, signature} or null
@@ -149,7 +146,6 @@ class AuthService {
 
     /**
      * Send verification email via Strategy+Factory (OTP or Link by VERIFY_TYPE).
-     * Kept intact for portfolio even when disabled — just guarded.
      *
      * @param {object} user - Mongoose user doc
      * @param {string} [purpose="signup"] - "signup" writes verificationOTP*, "forget" writes resetOTP*
@@ -165,8 +161,6 @@ class AuthService {
     }
 
     /**
-     * Verify signup OR reset OTP (single-use, hashed compare + expiry check).
-     * Purpose picks which field pair is checked. Success clears fields so replay fails.
      *
      * @param {object} data
      * @param {string} data.email
@@ -220,8 +214,6 @@ class AuthService {
     }
 
     /**
-     * Start forgot-password: mails resetOTP* (separate fields so signup code not clobbered).
-     * Needs `POST /forgot-password` route (not wired yet).
      *
      * @param {object} data
      * @param {string} data.email
@@ -239,9 +231,6 @@ class AuthService {
 
     /**
      * Reset password WITHOUT old password (for OTP-verified flow).
-     * You already have this — but it has NO OTP check yet, so do NOT expose
-     * it publicly until you add verifyEmail(..., "forget") first.
-     * Next step: `resetWithOTP({email, otp, newPassword, confirmPassword})`.
      *
      * @param {object} data
      * @param {string} data.email
@@ -257,17 +246,12 @@ class AuthService {
         const user = await User.findOne({ email });
         if (!user) throw new AppError("User not found", 404);
         user.password = newPassword;
-        await user.save(); // pre('save') re-hashes because password modified
+        await user.save(); 
         return userDTO.formatUser(user);
     }
 
     /**
      * Change password WHILE LOGGED IN (needs old password).
-     * This is what you asked "change password when login" — yes you already
-     * wrote it, it was just missing `static` so `AuthService.resetPassword()`
-     * would crash. Fixed now.
-     * Next: wire `PATCH /auth/change-password` with `protect` + use req.user email,
-     * don't trust req.body.email.
      *
      * @param {object} data
      * @param {string} data.email - should come from req.user.email, not client

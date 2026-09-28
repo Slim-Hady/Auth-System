@@ -54,3 +54,18 @@ exports.forgetPassword = catchAsync(async(req,res,next) => {
         message: 'OTP Resend successfully'
     })
 });
+exports.changePassword= catchAsync(async(req,res,next) => {
+    await AuthService.changePassword(req.body);
+    res.status(200).json({
+        status: 'success',
+        message: 'password changed successfully'
+    })
+});
+
+exports.resetPassword = catchAsync(async(req,res,next)=>{
+    await AuthService.resetPassword(req.body);
+    res.status(200).json({
+        status: 'success',
+        message: 'password changed successfully'
+    })
+})
