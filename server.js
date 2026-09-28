@@ -1,13 +1,17 @@
 const dotenv = require('dotenv');
 dotenv.config({ path: './.env' });
-
 const app = require('./app');
 
-const {PORT} = require('./config/key');
+const { PORT, EMAIL_ENABLED } = require('./config/key');
 const MONGO_CONNECTION = require('./config/DB');
 const { verifyEmailConnection } = require('./config/email');
 
-verifyEmailConnection();
+if (EMAIL_ENABLED) {
+    verifyEmailConnection();
+}
+else {
+    console.log("Email is disabled (EMAIL_ENABLED=false) - skipping SMTP check, users auto-verified");
+}
 MONGO_CONNECTION();
 
 app.listen(PORT, () => {

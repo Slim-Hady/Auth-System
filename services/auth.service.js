@@ -1,36 +1,39 @@
 const jwt = require('jsonwebtoken');
-const {JWT_SECRET, JWT_EXPIRES_IN, VERIFY_TYPE} = require('../config/key');
+const { JWT_SECRET, JWT_EXPIRES_IN, VERIFY_TYPE, EMAIL_ENABLED } = require('../config/key');
 const User = require('../models/user.model');
 const AppError = require('../utils/AppError');
 const userDTO = require('../dtos/user.dto');
-const sendEmail = require('../factories/verification.factory');
-const bcrypt =require('bcrypt');
-const emailService = require('../services/email.service');
+const VerificationFactory = require('../factories/verification.factory');
+const bcrypt = require('bcrypt');
+
 class AuthService {
     /**
-     * 
-     * @param {object} user
-     * @param {string} user.email
-     * @param {string} user.password
-     * @returns {Promise<{token: string, user: object}>} -- return token to save it on (cookie or localStorage) and username,email,role if it used on frontend
-     * @throws {AppError}
+     * Login with email + password and return JWT + clean user.
+     * When EMAIL_ENABLED=false the isVerified gate is skipped so you can
+     * focus on AuthN/AuthZ without SMTP quota.
+     *
+     * @param {object} data
+     * @param {string} data.email - user email from req.body
+     * @param {string} data.password - plain password from req.body
+     * @returns {Promise<{token: string, user: object}>} JWT to send as `Authorization: Bearer <token>` + cleaned user
+     * @throws {AppError} 401 when email/password wrong, or not verified (only when email ON)
      */
-    static async login(user){
-        const {email , password} = user;
-        const findUser = await User.findOne({email}).select('+password');
-        
-        if(!findUser){
-            throw new AppError(`user email or password is not correct`, 401);
-        }
-        const isMatch =await findUser.comparePassword(password)
+    static async login({ email, password }) {
+        const findUser = await User.findOne({ email }).select('+password');
 
-        if(!isMatch){
+        if (!findUser) {
             throw new AppError(`user email or password is not correct`, 401);
         }
-        
-        if(!findUser.isVerified){
-             throw new AppError(`user is not verified`, 401);
-        }   
+        const isMatch = await findUser.comparePassword(password)
+
+        if (!isMatch) {
+            throw new AppError(`user email or password is not correct`, 401);
+        }
+
+        // Skip verification gate when email is OFF (dev mode)
+        if (EMAIL_ENABLED && !findUser.isVerified) {
+            throw new AppError(`user is not verified`, 401);
+        }
 
         const token = AuthService.generateToken(findUser);
         return {
@@ -43,68 +46,97 @@ class AuthService {
             user: userDTO.formatUser(findUser)
         }
     }
+
     /**
-     * 
-     * @param {object} user
-     * @param {string} user.id 
-     * @param {string} user.username
+     * Mint a short-lived access JWT (the "ticket").
+     * Payload is readable by anyone (base64), so never put password/OTP inside.
+     *
+     * @param {object} user - Mongoose user doc (needs id, userName, email, role)
+     * @param {string} user.id
+     * @param {string} user.userName - virtual firstName + secondName
      * @param {string} user.email
-     * @param  {string} user.role
-     * @returns {string} -- the json token header.payload.signature
+     * @param {string} user.role - "user" | "admin"
+     * @returns {string} signed JWT header.payload.signature
      */
-    static generateToken(user){
+    static generateToken(user) {
         const payload = {
             userId: user.id,
             username: user.userName,
             email: user.email,
             role: user.role
         }
-        return jwt.sign(payload,JWT_SECRET, 
+        return jwt.sign(payload, JWT_SECRET,
             {
-                expiresIn:JWT_EXPIRES_IN,
+                expiresIn: JWT_EXPIRES_IN,
                 issuer: "Auth-System"
             }
         )
     }
+
     /**
-     * 
-     * @param {String} token
-     * @param {String} secret_key
-     * @returns {object} payload
-     * @throws {AppError} TokenExpiredError
-     * @throws {AppError} JsonWebTokenError
+     * Verify Authorization header token (used by `protect` middleware).
+     * Converts library errors to friendly AppErrors.
+     *
+     * @param {string} token - raw JWT without "Bearer " prefix
+     * @returns {object} decoded payload {userId, email, role, iat, exp, iss}
+     * @throws {AppError} 401 "Token expired" | 401 "Invalid token"
      */
-    static verifyToken(token){
+    static verifyToken(token) {
         try {
-            return jwt.verify(token , JWT_SECRET);
+            return jwt.verify(token, JWT_SECRET);
         }
-        catch(err){
-            if(err.name === 'TokenExpiredError'){
+        catch (err) {
+            if (err.name === 'TokenExpiredError') {
                 throw new AppError('Token expired', 401);
             }
-            else if (err.name === 'JsonWebTokenError'){
+            else if (err.name === 'JsonWebTokenError') {
                 throw new AppError('Invalid token', 401);
             }
             throw err;
         }
     }
+
     /**
-     * 
-     * @param {String} token
-     * @returns {String} token
+     * Decode without verifying (debug only). NEVER gate access on this.
+     *
+     * @param {string} token - any JWT
+     * @returns {object|null} {header, payload, signature} or null
      */
-    static decodeToken(token){
-        return jwt.decode(token, {complete: true});
+    static decodeToken(token) {
+        return jwt.decode(token, { complete: true });
     }
 
-    // registration 
-    static async register(user){
-        const {email} = user;
-        if(await User.findOne({email})) {
+    /**
+     * Register a new user.
+     * - 409 if email exists.
+     * - Password hashed by pre('save') hook in user.model (bcrypt 12).
+     * - If EMAIL_ENABLED=true: fire verification email via Factory (OTP/Link by VERIFY_TYPE).
+     * - If EMAIL_ENABLED=false: auto-set isVerified=true so login works with no SMTP.
+     *
+     * @param {object} data
+     * @param {string} data.firstName
+     * @param {string} data.secondName
+     * @param {string} data.email
+     * @param {string} data.password - plain, will be hashed
+     * @param {string} [data.role] - defaults "user", only admin should set "admin"
+     * @returns {Promise<object>} cleaned user {username, email, role}
+     * @throws {AppError} 409 "Email already exists."
+     */
+    static async register(data) {
+        const { email } = data;
+        if (await User.findOne({ email })) {
             throw new AppError(`Email already exists.`, 409);
         }
-        const newUser =await User.create(user);
-        AuthService.sendEmail(newUser, "signup");
+        const newUser = await User.create(data);
+
+        if (EMAIL_ENABLED) {
+            // fire-and-forget: register returns 201 even if SMTP is slow
+            AuthService.sendEmail(newUser, "signup").catch(() => { });
+        } else {
+            // Dev mode: no SMTP quota used, account usable immediately
+            newUser.isVerified = true;
+            await newUser.save({ validateBeforeSave: false });
+        }
         // const strategy = sendEmail.createStrategy(VERIFY_TYPE);
         // await strategy.sendVerification(newUser);
         // const token = AuthService.generateToken(newUser);
@@ -114,73 +146,147 @@ class AuthService {
         // }
         return userDTO.formatUser(newUser)
     }
-    static async sendEmail(user, purpose = "signup"){
-        const strategy = sendEmail.createStrategy(VERIFY_TYPE);
-        await strategy.sendVerification(user , purpose);
+
+    /**
+     * Send verification email via Strategy+Factory (OTP or Link by VERIFY_TYPE).
+     * Kept intact for portfolio even when disabled — just guarded.
+     *
+     * @param {object} user - Mongoose user doc
+     * @param {string} [purpose="signup"] - "signup" writes verificationOTP*, "forget" writes resetOTP*
+     * @returns {Promise<void>}
+     * @throws {AppError} 503 when EMAIL_ENABLED=false
+     */
+    static async sendEmail(user, purpose = "signup") {
+        if (!EMAIL_ENABLED) {
+            throw new AppError('Email service is disabled (EMAIL_ENABLED=false)', 503);
+        }
+        const strategy = VerificationFactory.createStrategy(VERIFY_TYPE);
+        await strategy.sendVerification(user, purpose);
     }
-   // verify email 
-   static async verifyEmail({email,otp} , purpose = "signup"){
+
+    /**
+     * Verify signup OR reset OTP (single-use, hashed compare + expiry check).
+     * Purpose picks which field pair is checked. Success clears fields so replay fails.
+     *
+     * @param {object} data
+     * @param {string} data.email
+     * @param {string|number} data.otp - plain code from inbox
+     * @param {string} [purpose="signup"] - "signup" flips isVerified, "forget" does not
+     * @returns {Promise<object>} cleaned user
+     * @throws {AppError} 503 when disabled | 404 email not found | 400 invalid/expired OTP
+     */
+    static async verifyEmail({ email, otp }, purpose = "signup") {
+        if (!EMAIL_ENABLED) {
+            throw new AppError('Email verification is disabled (EMAIL_ENABLED=false)', 503);
+        }
         const isSignup = purpose === "signup";
         const otpField = isSignup ? "verificationOTP" : "resetOTP"
         const expireField = isSignup ? "verificationOTPExpires" : "resetOTPExpires"
 
-        const user = await User.findOne({email}).select(`+${otpField} +${expireField}`);
+        const user = await User.findOne({ email }).select(`+${otpField} +${expireField}`);
 
-        if(!user) throw new AppError("Email not found", 404);
+        if (!user) throw new AppError("Email not found", 404);
 
-        const match = await bcrypt.compare(otp, user[otpField] || '');
+        const match = await bcrypt.compare(String(otp), user[otpField] || '');
 
-        if(!user[otpField] || user[expireField] < Date.now() || !match) {
+        if (!user[otpField] || user[expireField] < Date.now() || !match) {
             throw new AppError('Invalid or expired otp', 400);
         }
 
-        if(isSignup) user.isVerified = true;
-        user[otpField] =  undefined;
-        user[expireField] =  undefined;
-        await user.save({validateBeforeSave: false});
-        
-        return userDTO.formatUser(user);
+        if (isSignup) user.isVerified = true;
+        user[otpField] = undefined;
+        user[expireField] = undefined;
+        await user.save({ validateBeforeSave: false });
 
-   }
-   
-   /**
-    * @param {object} user
-    * @return {string} otp
-    */
-    static async resendOTP({email}){
-        const res = await User.findOne({email});
-        if(!res) throw new AppError("Email not found", 404);
-        AuthService.sendEmail(res);
-   }
-   
-    static async forgetPassword({email}){
-        const user = await User.findOne({email});
-        if(!user) throw new AppError('user not found' , 404);
-        AuthService.sendEmail(user , "forget");
+        return userDTO.formatUser(user);
     }
-  
-    static async changePassword({email ,newPassword, confirmPassword}) {
-        const user = await User.findOne({email});
-        if(newPassword != confirmPassword) {
-            throw new AppError("password don't match", 404);
+
+    /**
+     * Re-send signup OTP (for expired/lost codes).
+     * TODO next: add 60s cooldown + "unverified only" check to stop inbox spam.
+     *
+     * @param {object} data
+     * @param {string} data.email
+     * @returns {Promise<void>}
+     * @throws {AppError} 503 when disabled | 404 email not found
+     */
+    static async resendOTP({ email }) {
+        if (!EMAIL_ENABLED) {
+            throw new AppError('Email service is disabled (EMAIL_ENABLED=false)', 503);
         }
+        const user = await User.findOne({ email });
+        if (!user) throw new AppError("Email not found", 404);
+        await AuthService.sendEmail(user, "signup");
+    }
+
+    /**
+     * Start forgot-password: mails resetOTP* (separate fields so signup code not clobbered).
+     * Needs `POST /forgot-password` route (not wired yet).
+     *
+     * @param {object} data
+     * @param {string} data.email
+     * @returns {Promise<void>}
+     * @throws {AppError} 503 when disabled | 404 user not found
+     */
+    static async forgetPassword({ email }) {
+        if (!EMAIL_ENABLED) {
+            throw new AppError('Email service is disabled (EMAIL_ENABLED=false)', 503);
+        }
+        const user = await User.findOne({ email });
+        if (!user) throw new AppError('user not found', 404);
+        await AuthService.sendEmail(user, "forget");
+    }
+
+    /**
+     * Reset password WITHOUT old password (for OTP-verified flow).
+     * You already have this — but it has NO OTP check yet, so do NOT expose
+     * it publicly until you add verifyEmail(..., "forget") first.
+     * Next step: `resetWithOTP({email, otp, newPassword, confirmPassword})`.
+     *
+     * @param {object} data
+     * @param {string} data.email
+     * @param {string} data.newPassword
+     * @param {string} data.confirmPassword - must match newPassword
+     * @returns {Promise<object>} cleaned user
+     * @throws {AppError} 400 passwords don't match
+     */
+    static async changePassword({ email, newPassword, confirmPassword }) {
+        if (newPassword !== confirmPassword) {
+            throw new AppError("passwords don't match", 400);
+        }
+        const user = await User.findOne({ email });
+        if (!user) throw new AppError("User not found", 404);
         user.password = newPassword;
-        await user.save();
+        await user.save(); // pre('save') re-hashes because password modified
         return userDTO.formatUser(user);
     }
 
-    async resetPassword({email , oldPassword , newPassword}){
-        const user = await User.findOne({email}).select("+password");
-        if(!user) throw new AppError("User not exist" , 404);
+    /**
+     * Change password WHILE LOGGED IN (needs old password).
+     * This is what you asked "change password when login" — yes you already
+     * wrote it, it was just missing `static` so `AuthService.resetPassword()`
+     * would crash. Fixed now.
+     * Next: wire `PATCH /auth/change-password` with `protect` + use req.user email,
+     * don't trust req.body.email.
+     *
+     * @param {object} data
+     * @param {string} data.email - should come from req.user.email, not client
+     * @param {string} data.oldPassword - current password for proof
+     * @param {string} data.newPassword - will be hashed on save
+     * @returns {Promise<object>} cleaned user
+     * @throws {AppError} 404 user not exist | 401 old password wrong
+     */
+    static async resetPassword({ email, oldPassword, newPassword }) {
+        const user = await User.findOne({ email }).select("+password");
+        if (!user) throw new AppError("User not exist", 404);
         const isMatch = await user.comparePassword(oldPassword);
-        if(!isMatch){
-            throw new AppError("Password don't match", 401);
+        if (!isMatch) {
+            throw new AppError("Old password is not correct", 401);
         }
         user.password = newPassword;
         await user.save();
         return userDTO.formatUser(user);
     }
-   
 }
 
 module.exports = AuthService;
