@@ -1,6 +1,7 @@
 const AuthService = require('../services/auth.service');
 const catchAsync = require('../utils/catchAsync');
 const {NODE_ENV} = require('../config/key');
+const AppError = require('../utils/AppError');
 
 exports.login = catchAsync(async (req, res,next) => {
 
@@ -63,7 +64,15 @@ exports.changePassword= catchAsync(async(req,res,next) => {
 });
 
 exports.resetPassword = catchAsync(async(req,res,next)=>{
-    await AuthService.resetPassword(req.body);
+    const { oldPassword, newPassword } = req.body;
+    if(!oldPassword || !newPassword){
+        throw new AppError('old password or new password not provided', 400);
+    }
+    await AuthService.resetPassword({
+        email: req.user.email,
+        oldPassword,
+        newPassword
+    });
     res.status(200).json({
         status: 'success',
         message: 'password changed successfully'
