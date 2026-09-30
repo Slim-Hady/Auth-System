@@ -1,4 +1,4 @@
-const {transport} = require('../config/email');
+const {verifyConnection} = require('../config/email');
 const {email_from_name, email_from_address} = require('../config/key');
 
 

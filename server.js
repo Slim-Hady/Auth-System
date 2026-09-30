@@ -4,10 +4,10 @@ const app = require('./app');
 
 const { PORT, EMAIL_ENABLED } = require('./config/key');
 const MONGO_CONNECTION = require('./config/DB');
-const { verifyEmailConnection } = require('./config/email');
+const { verifyConnection } = require('./config/email');
 
 if (EMAIL_ENABLED) {
-    verifyEmailConnection();
+    verifyConnection();
 }
 else {
     console.log("Email is disabled (EMAIL_ENABLED=false) - skipping SMTP check, users auto-verified");
