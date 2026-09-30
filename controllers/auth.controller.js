@@ -20,9 +20,9 @@ exports.login = catchAsync(async (req, res,next) => {
 })
 
 exports.register = catchAsync(async (req, res, next) => {
-
+        
         const user = await AuthService.register(req.body);
-    
+
         res.status(201).json({
             status: 'success',
             message: 'sign up successfully',

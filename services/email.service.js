@@ -1,7 +1,7 @@
-const {verifyConnection} = require('../config/email');
+const {verifyConnection, resend} = require('../config/email');
 const {email_from_name, email_from_address} = require('../config/key');
-
-
+const fs = require('fs');
+const Handlebars = require('handlebars');
     
 class EmailService {
 
@@ -10,10 +10,9 @@ class EmailService {
             from: `"${email_from_name}" <${email_from_address}>`,
             to,
             subject,
-            template,
-            context
+            html: Handlebars.compile(fs.readFileSync(`template/${template}.hbs`, 'utf-8'))(context)
         };
-        return await transport.sendMail(option);
+        return await resend.emails.send(option);
     }
 
     static sendSignUpOTP(to, otp, name){   
@@ -26,7 +25,7 @@ class EmailService {
                 otp
             }
         )
-        // transport.sendMail({
+        // resend.sendMail({
         //     from: `"${email_from_name}" <${email_from_address}>`,
         //     to: to,
         //     subject: "verify Email",
@@ -54,7 +53,7 @@ class EmailService {
                 link
             }
         )
-        // transport.sendMail({
+        // resend.sendMail({
         //     from: `"${email_from_name}" <${email_from_address}>`,
         //     to: to,
         //     subject: "verify Email",
@@ -83,7 +82,7 @@ class EmailService {
                 otp
             }
         )
-        // transport.sendMail({
+        // resend.sendMail({
         //     from: `"${email_from_name}" <${email_from_address}>`,
         //     to: to,
         //     subject: "Forget Password",
