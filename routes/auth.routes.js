@@ -9,4 +9,5 @@ router.post('/verify', authController.verifyEmail);
 router.post('/resend', authController.resendOTP);
 router.patch('/resetPassword' , protect,authController.resetPassword);
 
+
 module.exports = router;

@@ -118,6 +118,7 @@ class AuthService {
      * @param {string} [data.role] - defaults "user", only admin should set "admin"
      * @returns {Promise<object>} cleaned user {username, email, role}
      * @throws {AppError} 409 "Email already exists."
+     * @throws {AppError} 503 when the verification email fails to send (account rolled back, retry is clean)
      */
     static async register(data) {
         const { email } = data;
@@ -127,10 +128,13 @@ class AuthService {
         const newUser = await User.create(data);
 
         if (EMAIL_ENABLED) {
-            // fire-and-forget: register returns 201 even if SMTP is slow
-            AuthService.sendEmail(newUser, "signup").catch(() => { });
+            try {
+                await AuthService.sendEmail(newUser, "signup");
+            } catch (err) {
+                await User.findByIdAndDelete(newUser._id);
+                throw err;
+            }
         } else {
-            // Dev mode: no SMTP quota used, account usable immediately
             newUser.isVerified = true;
             await newUser.save({ validateBeforeSave: false });
         }
@@ -271,6 +275,12 @@ class AuthService {
         await user.save();
         return userDTO.formatUser(user);
     }
+
+    /*
+    TODO: Logout
+    TODO: refresh token
+    TODO: BlackList
+    */
 }
 
 module.exports = AuthService;

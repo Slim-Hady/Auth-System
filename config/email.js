@@ -8,11 +8,14 @@ const resend = new Resend(RESEND_API);
 
 const verifyConnection = async()=> {
     try {
-        await resend.apiKeys.list();
+        // NOTE: resend.apiKeys.list() does NOT throw on a bad key,
+        // it returns { data, error } — so check .error explicitly
+        const { error } = await resend.apiKeys.list();
+        if (error) throw new Error(error.message);
         console.log("Email service is connected");
     }
     catch(err){
-        console.log(`Email service not connected ${err}`);
+        console.log(`Email service not connected: ${err.message || err}`);
     }
 }
 module.exports = {resend ,verifyConnection};

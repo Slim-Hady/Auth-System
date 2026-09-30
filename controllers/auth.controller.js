@@ -1,6 +1,6 @@
 const AuthService = require('../services/auth.service');
 const catchAsync = require('../utils/catchAsync');
-const {NODE_ENV} = require('../config/key');
+const {NODE_ENV, EMAIL_ENABLED} = require('../config/key');
 const AppError = require('../utils/AppError');
 
 exports.login = catchAsync(async (req, res,next) => {
@@ -25,7 +25,9 @@ exports.register = catchAsync(async (req, res, next) => {
 
         res.status(201).json({
             status: 'success',
-            message: 'sign up successfully',
+            message: EMAIL_ENABLED
+                ? 'verification email sent, check your inbox to activate your account'
+                : 'sign up successfully',
             user
         });
 

@@ -2,7 +2,7 @@ const {verifyConnection, resend} = require('../config/email');
 const {email_from_name, email_from_address} = require('../config/key');
 const fs = require('fs');
 const Handlebars = require('handlebars');
-    
+const AppError = require('../utils/AppError');
 class EmailService {
 
     static async sendEmail(to, subject, template, context){
@@ -12,7 +12,8 @@ class EmailService {
             subject,
             html: Handlebars.compile(fs.readFileSync(`template/${template}.hbs`, 'utf-8'))(context)
         };
-        return await resend.emails.send(option);
+        const { error } = await resend.emails.send(option);
+        if (error) throw new AppError(`could not send the Email: ${error.message}`, 503);
     }
 
     static sendSignUpOTP(to, otp, name){   
