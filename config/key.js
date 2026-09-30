@@ -12,5 +12,7 @@ module.exports = {
     email_from_name: process.env.email_from_name,
     VERIFY_TYPE: process.env.VERIFY_TYPE || "otp",
     EMAIL_ENABLED: process.env.EMAIL_ENABLED === "true",
-    RESEND_API: process.env.RESEND_API
+    RESEND_API: process.env.RESEND_API,
+    REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN, 
+    REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET
 }

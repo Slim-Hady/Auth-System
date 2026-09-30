@@ -1,6 +1,6 @@
 const AuthService = require('../services/auth.service');
 const catchAsync = require('../utils/catchAsync');
-const {NODE_ENV, EMAIL_ENABLED} = require('../config/key');
+const {NODE_ENV, EMAIL_ENABLED , REFRESH_TOKEN_EXPIRES_IN} = require('../config/key');
 const AppError = require('../utils/AppError');
 
 exports.login = catchAsync(async (req, res,next) => {
@@ -9,12 +9,19 @@ exports.login = catchAsync(async (req, res,next) => {
 
     const result = await AuthService.login({email, password});
 
-    const {token , user} = result;
-    
+    const {accessToken , refreshToken , user} = result;
+
+    const cookieOption = {
+        httpOnly: true,
+        secure: NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    }
+    res.cookie('refreshToken' , refreshToken , cookieOption);
     res.status(200).json({
         status: 'success',
         message: 'login successfully',
-        token,
+        accessToken,
         user
     });
 })
@@ -93,3 +100,28 @@ exports.resetWithOTP = catchAsync(async(req, res, next) => {
         message: 'password updated successfully'
     })
 });
+
+exports.refresh = catchAsync(async(req, res, next)=> {
+    const {accessToken} = await AuthService.refresh(req.cookies.refreshToken);
+    res.status(200).json({
+        status: 'success',
+        accessToken
+    });
+});
+
+// exports.logout = catchAsync(async (req, res, next) => {
+//     const rawCookies = req.headers['cookie']; 
+//     let accessToken = null;
+//     if (rawCookies) {
+//         const jwtCookie = rawCookies.split('; ').find(row => row.startsWith('jwt='));
+//         if (jwtCookie) {
+//             accessToken = jwtCookie.split('=')[1];
+//         }
+//     }
+//     if (!accessToken) {
+//         return res.status(204).send();
+//     }
+//     await AuthService.logout(accessToken);
+//     res.setHeader('Clear-Site-Data', '"cookies"');
+//     return res.status(200).json({ message: 'You are logged out!' });
+// });

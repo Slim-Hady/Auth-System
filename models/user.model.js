@@ -57,6 +57,11 @@ const userSchema = new Schema({
     type: Date,
     select: false
     }, 
+    refreshToken: [{
+        type: String,
+        trim: false,
+        select: false
+    }]
     
 },{
     timestamps: true,

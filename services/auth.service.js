@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET, JWT_EXPIRES_IN, VERIFY_TYPE, EMAIL_ENABLED } = require('../config/key');
+const { JWT_SECRET, JWT_EXPIRES_IN, VERIFY_TYPE, EMAIL_ENABLED, REFRESH_TOKEN_EXPIRES_IN, REFRESH_TOKEN_SECRET} = require('../config/key');
 const User = require('../models/user.model');
 const AppError = require('../utils/AppError');
 const userDTO = require('../dtos/user.dto');
@@ -19,7 +19,7 @@ class AuthService {
      * @throws {AppError} 401 when email/password wrong, or not verified (only when email ON)
      */
     static async login({ email, password }) {
-        const findUser = await User.findOne({ email }).select('+password');
+        const findUser = await User.findOne({ email }).select('+password +refreshToken');
 
         if (!findUser) {
             throw new AppError(`user email or password is not correct`, 401);
@@ -35,9 +35,13 @@ class AuthService {
             throw new AppError(`user is not verified`, 401);
         }
 
-        const token = AuthService.generateToken(findUser);
+        const accessToken = AuthService.generateToken(findUser);
+        const refreshToken = AuthService.generateRefreshToken(findUser)
+        findUser.refreshToken.push(refreshToken);
+        await findUser.save()
         return {
-            token,
+            accessToken,
+            refreshToken,
             // user: {
             //     username: findUser.userName,
             //     email: findUser.email,
@@ -67,6 +71,21 @@ class AuthService {
         return jwt.sign(payload, JWT_SECRET,
             {
                 expiresIn: JWT_EXPIRES_IN,
+                issuer: "Auth-System"
+            }
+        )
+    }
+
+    static generateRefreshToken(user){
+        const payload = {
+            userId: user.id,
+            username: user.userName,
+            email: user.email,
+            role: user.role
+        }
+        return jwt.sign(payload, REFRESH_TOKEN_SECRET,
+            {
+                expiresIn: REFRESH_TOKEN_EXPIRES_IN,
                 issuer: "Auth-System"
             }
         )
@@ -284,12 +303,38 @@ class AuthService {
         await AuthService.changePassword({email , newPassword, confirmPassword});
         return user;
     }
-
     /*
-    TODO: Logout
     TODO: refresh token
+    TODO:  Logout
     TODO: BlackList
     */
+    static verifyRefreshToken(token) {
+        try {
+            return jwt.verify(token , REFRESH_TOKEN_SECRET);
+        }
+        catch(err){
+            throw new AppError('Invalid or Expired refresh Token', 401);
+        }
+    }
+
+    static async refresh(token){
+        const payload = await AuthService.verifyRefreshToken(token);
+        const user = await User.findById(payload.userId).select('+refreshToken');
+        if(!user || !user.refreshToken.includes(token)) {
+            throw new AppError('Invalid or expired refresh Token', 401);
+        }
+        return { accessToken: AuthService.generateToken(user)};
+    }
+
+    // static async logout(accessToken){
+    //     if(!accessToken) { 
+    //         return {
+    //             message : "No token provided"
+    //         }
+    //     }
+    //     return {success:true};
+    // }
+    
 }
 
 module.exports = AuthService;
