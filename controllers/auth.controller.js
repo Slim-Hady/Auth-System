@@ -54,9 +54,10 @@ exports.forgetPassword = catchAsync(async(req,res,next) => {
     await AuthService.forgetPassword(req.body);
     res.status(200).json({
         status: 'success',
-        message: 'OTP Resend successfully'
+        message: 'OTP send successfully'
     })
 });
+
 exports.changePassword= catchAsync(async(req,res,next) => {
     await AuthService.changePassword(req.body);
     res.status(200).json({
@@ -80,3 +81,15 @@ exports.resetPassword = catchAsync(async(req,res,next)=>{
         message: 'password changed successfully'
     })
 })
+
+exports.resetWithOTP = catchAsync(async(req, res, next) => {
+    const {email , otp , newPassword, confirmPassword} = req.body;
+    if(!email || !otp || !newPassword || !confirmPassword){
+        throw new AppError('You must fill all fields', 400);
+    }
+    await AuthService.resetWithOTP({email , otp , newPassword , confirmPassword});
+    res.status(200).json({
+        status: 'success',
+        message: 'password updated successfully'
+    })
+});

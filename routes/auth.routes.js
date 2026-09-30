@@ -8,6 +8,7 @@ router.post('/register',authController.register);
 router.post('/verify', authController.verifyEmail);
 router.post('/resend', authController.resendOTP);
 router.patch('/resetPassword' , protect,authController.resetPassword);
-
+router.post('/forget-password', authController.forgetPassword);
+router.post('/reset-password', authController.resetWithOTP);
 
 module.exports = router;

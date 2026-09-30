@@ -275,6 +275,15 @@ class AuthService {
         await user.save();
         return userDTO.formatUser(user);
     }
+    
+    static async resetWithOTP( {email , otp , newPassword , confirmPassword}) {
+        if (newPassword !== confirmPassword) {
+            throw new AppError("passwords don't match", 400);
+        }
+        const user = await AuthService.verifyEmail({email,otp} , 'forget');
+        await AuthService.changePassword({email , newPassword, confirmPassword});
+        return user;
+    }
 
     /*
     TODO: Logout
