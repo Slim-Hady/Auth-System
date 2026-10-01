@@ -5,6 +5,7 @@ const globalErrorHandling = require('./controllers/error.controller');
 const authRouter = require('./routes/auth.routes');
 const userRouter = require('./routes/user.routes');
 const healthCheck = require('./routes/health.routes');
+const commentRouter = require('./routes/comment.routes');
 
 const morgan = require('morgan');
 
@@ -17,6 +18,7 @@ app.use(morgan('dev'));
 app.use('/api/v1/', healthCheck)
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', userRouter);
+app.use('/api/v1/comments', commentRouter);
 
 app.all('*path', (req, res, next) => {
     next(new AppError(`can't find ${req.originalUrl} on this server` , 404));
