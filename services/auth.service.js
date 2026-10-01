@@ -326,14 +326,14 @@ class AuthService {
         return { accessToken: AuthService.generateToken(user)};
     }
 
-    // static async logout(accessToken){
-    //     if(!accessToken) { 
-    //         return {
-    //             message : "No token provided"
-    //         }
-    //     }
-    //     return {success:true};
-    // }
+//     static async logout(accessToken){
+//         if(!accessToken) { 
+//             return {
+//                 message : "No token provided"
+//             }
+//         }
+//         return {success:true};
+//     }
     
 }
 

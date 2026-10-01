@@ -1,5 +1,5 @@
 const UserController = require('../controllers/user.controller');
-const {protect} = require('../middlewares/auth.middleware');
+const {protect} = require('../middlewares/authN.middleware');
 
 const express = require('express');
 
